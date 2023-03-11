@@ -40,12 +40,12 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
         return len(self.file_list)
 
     def __getitem__(self, idx):
-        taxonomy_name, sample_name, rendering_images, volume = self.get_datum(idx)
+        taxonomy_name, sample_name, rendering_images, volume, metadata = self.get_datum(idx)
 
         if self.transforms:
             rendering_images = self.transforms(rendering_images)
 
-        return taxonomy_name, sample_name, rendering_images, volume
+        return taxonomy_name, sample_name, rendering_images, volume, metadata
 
     def set_n_views_rendering(self, n_views_rendering):
         self.n_views_rendering = n_views_rendering
@@ -55,15 +55,27 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
         sample_name = self.file_list[idx]['sample_name']
         rendering_image_paths = self.file_list[idx]['rendering_images']
         volume_path = self.file_list[idx]['volume']
+        rendering_metadata_path = '/'.join(rendering_image_paths[0].split('/')[:-1]) + '/rendering_metadata.txt'
+
+        # Read in all metadata for the 24 views
+        all_metadata = []
+        with open(rendering_metadata_path) as f:
+            for row in f:
+                temp = []
+                for x in row.split(' '):
+                    temp.append(float(x))
+                all_metadata.append(np.array(temp, dtype=np.float32))
 
         # Get data of rendering images
+        selected_indices = random.sample(range(len(rendering_image_paths)), self.n_views_rendering)
         if self.dataset_type == DatasetType.TRAIN:
             selected_rendering_image_paths = [
-                rendering_image_paths[i]
-                for i in random.sample(range(len(rendering_image_paths)), self.n_views_rendering)
+                rendering_image_paths[i] for i in selected_indices
             ]
+            metadata = [all_metadata[i] for i in selected_indices]
         else:
             selected_rendering_image_paths = [rendering_image_paths[i] for i in range(self.n_views_rendering)]
+            metadata = [all_metadata[i] for i in selected_indices]
 
         rendering_images = []
         for image_path in selected_rendering_image_paths:
@@ -86,7 +98,7 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
                 volume = utils.binvox_rw.read_as_3d_array(f)
                 volume = volume.data.astype(np.float32)
 
-        return taxonomy_name, sample_name, np.asarray(rendering_images), volume
+        return taxonomy_name, sample_name, np.asarray(rendering_images), volume, np.array(metadata)
 
 
 # //////////////////////////////// = End of ShapeNetDataset Class Definition = ///////////////////////////////// #
