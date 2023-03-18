@@ -100,15 +100,16 @@ def test_net(cfg,
             rendering_images = utils.network_utils.var_or_cuda(rendering_images)
             ground_truth_volume = utils.network_utils.var_or_cuda(ground_truth_volume)
 
-            encoder_input = {
-                'rendering_images': rendering_images
+            # Test the encoder, decoder and merger
+            image_features = encoder(rendering_images)
+
+            decoder_input = {
+                'image_features': image_features
             }
             if cfg.GEOMETRIC.METADATA:
-                encoder_input['metadata'] = metadata
+                decoder_input['metadata'] = metadata
 
-            # Test the encoder, decoder and merger
-            image_features = encoder(encoder_input)
-            raw_features, generated_volume = decoder(image_features)
+            raw_features, generated_volume = decoder(decoder_input)
 
             if cfg.NETWORK.USE_MERGER and epoch_idx >= cfg.TRAIN.EPOCH_START_USE_MERGER:
                 generated_volume = merger(raw_features, generated_volume)

@@ -61,21 +61,21 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
         all_metadata = []
         with open(rendering_metadata_path) as f:
             for row in f:
-                temp = []
-                for x in row.split(' '):
-                    temp.append(float(x))
+                vals = row.split(' ')
+                # Azimuth, elevation, distance
+                temp = [float(vals[0]), float(vals[1]), float(vals[3])]
                 all_metadata.append(np.array(temp, dtype=np.float32))
 
         # Get data of rendering images
-        selected_indices = random.sample(range(len(rendering_image_paths)), self.n_views_rendering)
         if self.dataset_type == DatasetType.TRAIN:
+            selected_indices = random.sample(range(len(rendering_image_paths)), self.n_views_rendering)
             selected_rendering_image_paths = [
                 rendering_image_paths[i] for i in selected_indices
             ]
             metadata = [all_metadata[i] for i in selected_indices]
         else:
             selected_rendering_image_paths = [rendering_image_paths[i] for i in range(self.n_views_rendering)]
-            metadata = [all_metadata[i] for i in selected_indices]
+            metadata = [all_metadata[i] for i in range(self.n_views_rendering)]
 
         rendering_images = []
         for image_path in selected_rendering_image_paths:
