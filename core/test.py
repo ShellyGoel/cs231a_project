@@ -91,25 +91,30 @@ def test_net(cfg,
     decoder.eval()
     merger.eval()
 
-    for sample_idx, (taxonomy_id, sample_name, rendering_images, ground_truth_volume, metadata) in enumerate(test_data_loader):
+    for sample_idx, (taxonomy_id, sample_name, rendering_images, depth_images, ground_truth_volume, metadata) in enumerate(test_data_loader):
         taxonomy_id = taxonomy_id[0] if isinstance(taxonomy_id[0], str) else taxonomy_id[0].item()
         sample_name = sample_name[0]
 
         with torch.no_grad():
             # Get data from data loader
             rendering_images = utils.network_utils.var_or_cuda(rendering_images)
+            depth_images = utils.network_utils.var_or_cuda(depth_images)
             ground_truth_volume = utils.network_utils.var_or_cuda(ground_truth_volume)
 
+            encoder_input = {
+                'rendering_images': rendering_images,
+                'depth_images': depth_images
+            }
+
             # Test the encoder, decoder and merger
-            image_features = encoder(rendering_images)
+            image_features = encoder(**encoder_input)
 
             decoder_input = {
                 'image_features': image_features
             }
             if cfg.GEOMETRIC.METADATA:
                 decoder_input['metadata'] = metadata
-
-            raw_features, generated_volume = decoder(decoder_input)
+            raw_features, generated_volume = decoder(**decoder_input)
 
             if cfg.NETWORK.USE_MERGER and epoch_idx >= cfg.TRAIN.EPOCH_START_USE_MERGER:
                 generated_volume = merger(raw_features, generated_volume)

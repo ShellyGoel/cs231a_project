@@ -41,26 +41,25 @@ class Decoder(torch.nn.Module):
             torch.nn.Sigmoid()
         )
 
-        self.metadata_layer = torch.nn.Sequential(
-            torch.nn.Linear(3, 32),
-            torch.nn.ReLU(),
-            torch.nn.Linear(32, 16),
-            torch.nn.ReLU(),
-            torch.nn.Linear(16, 1),
-            torch.nn.ReLU()
-        )
+        if self.use_metadata:
+            self.metadata_layer = torch.nn.Sequential(
+                torch.nn.Linear(3, 32),
+                torch.nn.ReLU(),
+                torch.nn.Linear(32, 16),
+                torch.nn.ReLU(),
+                torch.nn.Linear(16, 1),
+                torch.nn.ReLU()
+            )
 
-    def forward(self, decoder_input):
+    def forward(self, image_features, metadata=None):
         gen_voxels = []
         raw_features = []
 
         if (self.use_metadata):
-            image_features = decoder_input['image_features']
             # print(image_features.size())  # torch.Size([batch_size, n_views, 128, 4, 4])
             image_features = image_features.permute(1, 0, 2, 3, 4).contiguous()
             image_features = torch.split(image_features, 1, dim=0)
 
-            metadata = decoder_input['metadata']
             # print(metadata.size())  # torch.Size([batch_size, n_views, 3])
             metadata = metadata.permute(1, 0, 2).contiguous()
             metadata = torch.split(metadata, 1, dim=0)
@@ -97,7 +96,6 @@ class Decoder(torch.nn.Module):
                 gen_voxels.append(torch.squeeze(gen_voxel, dim=1))
                 raw_features.append(raw_feature)        
         else:
-            image_features = decoder_input['image_features']
             image_features = image_features.permute(1, 0, 2, 3, 4).contiguous()
             image_features = torch.split(image_features, 1, dim=0)
             for features in image_features:
@@ -124,4 +122,3 @@ class Decoder(torch.nn.Module):
         # print(gen_voxels.size())        # torch.Size([batch_size, n_views, 32, 32, 32])
         # print(raw_features.size())      # torch.Size([batch_size, n_views, 9, 32, 32, 32])
         return raw_features, gen_voxels
-

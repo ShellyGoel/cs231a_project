@@ -161,25 +161,30 @@ def train_net(cfg):
 
         batch_end_time = time()
         n_batches = len(train_data_loader)
-        for batch_idx, (taxonomy_names, sample_names, rendering_images,
+        for batch_idx, (taxonomy_names, sample_names, rendering_images, depth_images,
                         ground_truth_volumes, metadata) in enumerate(train_data_loader):
             # Measure data time
             data_time.update(time() - batch_end_time)
 
             # Get data from data loader
             rendering_images = utils.network_utils.var_or_cuda(rendering_images)
+            depth_images = utils.network_utils.var_or_cuda(depth_images)
             ground_truth_volumes = utils.network_utils.var_or_cuda(ground_truth_volumes)
 
+            encoder_input = {
+                'rendering_images': rendering_images,
+                'depth_images': depth_images
+            }
+
             # Train the encoder, decoder, and merger
-            image_features = encoder(rendering_images)
+            image_features = encoder(**encoder_input)
 
             decoder_input = {
                 'image_features': image_features
             }
             if cfg.GEOMETRIC.METADATA:
                 decoder_input['metadata'] = metadata
-
-            raw_features, generated_volumes = decoder(decoder_input)
+            raw_features, generated_volumes = decoder(**decoder_input)
 
             if cfg.NETWORK.USE_MERGER and epoch_idx >= cfg.TRAIN.EPOCH_START_USE_MERGER:
                 generated_volumes = merger(raw_features, generated_volumes)

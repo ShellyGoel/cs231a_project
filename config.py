@@ -12,11 +12,12 @@ cfg                                         = __C
 #
 __C.DATASETS                                = edict()
 __C.DATASETS.SHAPENET                       = edict()
-__C.DATASETS.SHAPENET.TAXONOMY_FILE_PATH    = './datasets/ShapeNet_chair.json'
+__C.DATASETS.SHAPENET.TAXONOMY_FILE_PATH    = './datasets/ShapeNet.json'
 # __C.DATASETS.SHAPENET.TAXONOMY_FILE_PATH  = './datasets/PascalShapeNet.json'
-__C.DATASETS.SHAPENET.RENDERING_PATH        = '/home/liuec_jessica2000/data/ShapeNetRendering/%s/%s/rendering/%02d.png'
+__C.DATASETS.SHAPENET.RENDERING_PATH        = './ShapeNetRendering/%s/%s/rendering/%02d.png'
 # __C.DATASETS.SHAPENET.RENDERING_PATH      = '/home/hzxie/Datasets/ShapeNet/PascalShapeNetRendering/%s/%s/render_%04d.jpg'
-__C.DATASETS.SHAPENET.VOXEL_PATH            = '/home/liuec_jessica2000/data/ShapeNetVox32/%s/%s/model.binvox'
+__C.DATASETS.SHAPENET.VOXEL_PATH            = './ShapeNetVox32/%s/%s/model.binvox'
+__C.DATASETS.SHAPENET.DEPTH_PATH            = './ShapeNetDepth/%s/%s/rendering/%02d.npy'
 
 __C.DATASETS.PASCAL3D                       = edict()
 __C.DATASETS.PASCAL3D.TAXONOMY_FILE_PATH    = './datasets/Pascal3D.json'
@@ -101,7 +102,7 @@ __C.GEOMETRIC                               = edict()
 __C.GEOMETRIC.METADATA                      = True
 __C.GEOMETRIC.INTRINSIC                     = False
 __C.GEOMETRIC.EXTRINSIC                     = False
-__C.GEOMETRIC.DEPTH                         = False
+__C.GEOMETRIC.DEPTH                         = True
 
 #
 # Testing options

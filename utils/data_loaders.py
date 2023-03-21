@@ -40,12 +40,13 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
         return len(self.file_list)
 
     def __getitem__(self, idx):
-        taxonomy_name, sample_name, rendering_images, volume, metadata = self.get_datum(idx)
+        taxonomy_name, sample_name, rendering_images, depth_images, volume, metadata = self.get_datum(idx)
 
         if self.transforms:
-            rendering_images = self.transforms(rendering_images)
+            rendering_images, depth_images = self.transforms(rendering_images, depth_images)
+        depth_images = torch.from_numpy(np.expand_dims(depth_images, axis=1).astype(np.float32))
 
-        return taxonomy_name, sample_name, rendering_images, volume, metadata
+        return taxonomy_name, sample_name, rendering_images, depth_images, volume, metadata
 
     def set_n_views_rendering(self, n_views_rendering):
         self.n_views_rendering = n_views_rendering
@@ -54,6 +55,7 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
         taxonomy_name = self.file_list[idx]['taxonomy_name']
         sample_name = self.file_list[idx]['sample_name']
         rendering_image_paths = self.file_list[idx]['rendering_images']
+        depth_image_paths = self.file_list[idx]['depth_images']
         volume_path = self.file_list[idx]['volume']
         rendering_metadata_path = '/'.join(rendering_image_paths[0].split('/')[:-1]) + '/rendering_metadata.txt'
 
@@ -72,9 +74,13 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
             selected_rendering_image_paths = [
                 rendering_image_paths[i] for i in selected_indices
             ]
+            selected_depth_image_paths = [
+                depth_image_paths[i] for i in selected_indices
+            ]
             metadata = [all_metadata[i] for i in selected_indices]
         else:
             selected_rendering_image_paths = [rendering_image_paths[i] for i in range(self.n_views_rendering)]
+            selected_depth_image_paths = [depth_image_paths[i] for i in range(self.n_views_rendering)]
             metadata = [all_metadata[i] for i in range(self.n_views_rendering)]
 
         rendering_images = []
@@ -87,6 +93,11 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
 
             rendering_images.append(rendering_image)
 
+        depth_images = []
+        for depth_path in selected_depth_image_paths:
+            depth_image = np.load(depth_path)
+            depth_images.append(depth_image)
+
         # Get data of volume
         _, suffix = os.path.splitext(volume_path)
 
@@ -98,7 +109,7 @@ class ShapeNetDataset(torch.utils.data.dataset.Dataset):
                 volume = utils.binvox_rw.read_as_3d_array(f)
                 volume = volume.data.astype(np.float32)
 
-        return taxonomy_name, sample_name, np.asarray(rendering_images), volume, np.array(metadata)
+        return taxonomy_name, sample_name, np.asarray(rendering_images), np.asarray(depth_images), volume, np.array(metadata)
 
 
 # //////////////////////////////// = End of ShapeNetDataset Class Definition = ///////////////////////////////// #
@@ -109,6 +120,7 @@ class ShapeNetDataLoader:
         self.dataset_taxonomy = None
         self.rendering_image_path_template = cfg.DATASETS.SHAPENET.RENDERING_PATH
         self.volume_path_template = cfg.DATASETS.SHAPENET.VOXEL_PATH
+        self.depth_path_template = cfg.DATASETS.SHAPENET.DEPTH_PATH
 
         # Load all taxonomies of the dataset
         with open(cfg.DATASETS.SHAPENET.TAXONOMY_FILE_PATH, encoding='utf-8') as file:
@@ -146,6 +158,19 @@ class ShapeNetDataLoader:
                       (dt.now(), taxonomy_folder_name, sample_name))
                 continue
 
+            # Get file path of depth images
+            depth_file_path = self.depth_path_template % (taxonomy_folder_name, sample_name, 0)
+            depth_folder = os.path.dirname(depth_file_path)
+            total_views = len(os.listdir(depth_folder))
+            depth_indexes = range(total_views)
+            depth_images_file_path = []
+            for depth_idx in depth_indexes:
+                depth_file_path = self.depth_path_template % (taxonomy_folder_name, sample_name, depth_idx)
+                if not os.path.exists(depth_file_path):
+                    continue
+
+                depth_images_file_path.append(depth_file_path)
+
             # Get file list of rendering images
             img_file_path = self.rendering_image_path_template % (taxonomy_folder_name, sample_name, 0)
             img_folder = os.path.dirname(img_file_path)
@@ -169,6 +194,7 @@ class ShapeNetDataLoader:
                 'taxonomy_name': taxonomy_folder_name,
                 'sample_name': sample_name,
                 'rendering_images': rendering_images_file_path,
+                'depth_images': depth_images_file_path,
                 'volume': volume_file_path,
             })
 

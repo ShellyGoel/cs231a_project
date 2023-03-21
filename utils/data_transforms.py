@@ -24,14 +24,17 @@ class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, rendering_images, bounding_box=None):
+    def __call__(self, rendering_images, depth_images, bounding_box=None):
         for t in self.transforms:
             if t.__class__.__name__ == 'RandomCrop' or t.__class__.__name__ == 'CenterCrop':
                 rendering_images = t(rendering_images, bounding_box)
+                depth_images = t(depth_images, bounding_box)
+            elif t.__class__.__name__ == 'RandomFlip':
+                rendering_images, depth_images = t(rendering_images, depth_images)
             else:
                 rendering_images = t(rendering_images)
 
-        return rendering_images
+        return rendering_images, depth_images
 
 
 class ToTensor(object):
@@ -85,10 +88,13 @@ class CenterCrop(object):
         if len(rendering_images) == 0:
             return rendering_images
 
-        crop_size_c = rendering_images[0].shape[2]
-        processed_images = np.empty(shape=(0, self.img_size_h, self.img_size_w, crop_size_c))
+        crop_size_c = rendering_images[0].shape[2] if len(rendering_images[0].shape) == 3 else 1
+        if crop_size_c == 1:
+            processed_images = np.empty(shape=(0, self.img_size_h, self.img_size_w))
+        else:
+            processed_images = np.empty(shape=(0, self.img_size_h, self.img_size_w, crop_size_c))
         for img_idx, img in enumerate(rendering_images):
-            img_height, img_width, _ = img.shape
+            img_height, img_width = img.shape[-2], img.shape[-1]
 
             if bounding_box is not None:
                 bounding_box = [
@@ -179,10 +185,13 @@ class RandomCrop(object):
         if len(rendering_images) == 0:
             return rendering_images
 
-        crop_size_c = rendering_images[0].shape[2]
-        processed_images = np.empty(shape=(0, self.img_size_h, self.img_size_w, crop_size_c))
+        crop_size_c = rendering_images[0].shape[2] if len(rendering_images[0].shape) == 3 else 1
+        if crop_size_c == 1:
+            processed_images = np.empty(shape=(0, self.img_size_h, self.img_size_w))
+        else:
+            processed_images = np.empty(shape=(0, self.img_size_h, self.img_size_w, crop_size_c))
         for img_idx, img in enumerate(rendering_images):
-            img_height, img_width, _ = img.shape
+            img_height, img_width = img.shape[-2], img.shape[-1]
 
             if bounding_box is not None:
                 bounding_box = [
@@ -250,14 +259,14 @@ class RandomCrop(object):
 
 
 class RandomFlip(object):
-    def __call__(self, rendering_images):
+    def __call__(self, rendering_images, depth_images):
         assert (isinstance(rendering_images, np.ndarray))
 
         for img_idx, img in enumerate(rendering_images):
             if random.randint(0, 1):
                 rendering_images[img_idx] = np.fliplr(img)
-
-        return rendering_images
+                depth_images[img_idx] = np.fliplr(depth_images[img_idx])
+        return rendering_images, depth_images
 
 
 class ColorJitter(object):
